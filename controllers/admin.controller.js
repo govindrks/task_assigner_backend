@@ -1,5 +1,6 @@
 import { Task } from "../models/task.model.js";
 import mongoose from "mongoose";
+import { logActivity } from "../utils/logActivity.js";
 
 /* ================= CREATE TASK ================= */
 export const adminCreateTask = async (req, res) => {
@@ -19,6 +20,13 @@ export const adminCreateTask = async (req, res) => {
       status: status || "TODO",
       assignedTo: new mongoose.Types.ObjectId(assignedTo), // 🔥 FIX
       createdBy: req.user.id,
+    });
+
+    await logActivity({
+      taskId: task._id,
+      action: "CREATED",
+      message: `Task created and assigned`,
+      userId: req.user.id,
     });
 
     res.status(201).json(task);
@@ -42,12 +50,25 @@ export const getAllTasks = async (req, res) => {
   }
 };
 
-
 export const adminUpdateTaskById = async (req, res) => {
   try {
     if (req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Admin access only" });
     }
+
+    const oldStatus = task.status;
+
+task.status = status;
+task.updatedBy = req.user.id;
+await task.save();
+
+await logActivity({
+  taskId: task._id,
+  action: "STATUS_CHANGED",
+  message: `Status changed from ${oldStatus} to ${status}`,
+  userId: req.user.id,
+});
+
 
     const task = await Task.findByIdAndUpdate(
       req.params.id,
@@ -70,7 +91,6 @@ export const adminUpdateTaskById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 /* ================= UPDATE STATUS ================= */
 const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];

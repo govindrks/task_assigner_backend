@@ -1,5 +1,6 @@
 import { Task } from "../models/task.model.js";
 import mongoose from "mongoose";
+import { logActivity } from "../utils/logActivity.js";
 
 /* ================= CREATE TASK (USER) ================= */
 export const createTask = async (req, res) => {
@@ -17,6 +18,13 @@ export const createTask = async (req, res) => {
       createdBy: req.user.id,
       assignedTo: req.user.id, // assign to self
       status: "TODO",
+    });
+
+    await logActivity({
+      taskId: task._id,
+      action: "CREATED",
+      message: "Task created",
+      userId: req.user.id,
     });
 
     res.status(201).json(task);
@@ -59,7 +67,6 @@ export const getTasks = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("updatedBy", "name email")
       .populate("createdBy", "name email");
-      
   }
 
   res.json(tasks);
