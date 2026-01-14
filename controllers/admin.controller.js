@@ -1,22 +1,23 @@
-import { Task } from "../models/task.model";
+import { Task } from "../models/task.model.js";
+import mongoose from "mongoose";
 
-//Admin create task to the users
+/* ================= CREATE TASK ================= */
 export const adminCreateTask = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Admin access only" });
-    }
+    const { title, description, assignedTo, dueDate, status } = req.body;
 
-    const { title, assignedTo, description, dueDate } = req.body;
     if (!title || !assignedTo) {
-      return res.status(400).json({ message: "Title and assignedTo required" });
+      return res.status(400).json({
+        message: "Title and assigned user are required",
+      });
     }
 
     const task = await Task.create({
       title,
       description,
       dueDate,
-      assignedTo,
+      status: status || "TODO",
+      assignedTo: new mongoose.Types.ObjectId(assignedTo), // 🔥 FIX
       createdBy: req.user.id,
     });
 
@@ -26,16 +27,13 @@ export const adminCreateTask = async (req, res) => {
   }
 };
 
-
+/* ================= GET ALL TASKS ================= */
 export const getAllTasks = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Admin access only" });
-    }
-
     const tasks = await Task.find()
       .populate("assignedTo", "name email")
-      .populate("createdBy", "name role");
+      .populate("createdBy", "name role")
+      .sort({ createdAt: -1 });
 
     res.json(tasks);
   } catch (err) {
@@ -43,28 +41,26 @@ export const getAllTasks = async (req, res) => {
   }
 };
 
-// Admin change task status
+/* ================= UPDATE STATUS ================= */
 const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
 
 export const updateStatus = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Admin access only" });
-    }
-
     const { status } = req.body;
+
     if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
 
-    const old = { status: task.status };
-    task.status = status;
-    await task.save();
-
-    await logAudit(task._id, "STATUS_CHANGED", old, task, req.user);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
 
     res.json(task);
   } catch (err) {
@@ -72,24 +68,17 @@ export const updateStatus = async (req, res) => {
   }
 };
 
-
-// Admin delete any task
+/* ================= DELETE TASK ================= */
 export const deleteTask = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Admin access only" });
+    const task = await Task.findByIdAndDelete(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
     }
 
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: "Task not found" });
-
-    await task.deleteOne();
-
-    await logAudit(task._id, "DELETED", task, null, req.user);
-
-    res.json({ message: "Task deleted" });
+    res.json({ message: "Task deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-

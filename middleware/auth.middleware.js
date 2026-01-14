@@ -10,19 +10,24 @@ export const requireAuth = (req, res, next) => {
       });
     }
 
-    const parts = authHeader.split(" ");
+    const [type, token] = authHeader.split(" ");
 
-    if (parts.length !== 2 || parts[0] !== "Bearer") {
+    if (type !== "Bearer" || !token) {
       return res.status(401).json({
         message: "Invalid authorization format",
       });
     }
 
-    const token = parts[1];
+    const decoded = verifyToken(token);
 
-    const decoded = verifyToken(token); // { id, role, iat, exp }
+    // ✅ NORMALIZE USER OBJECT
+    req.user = {
+      id: decoded.id || decoded._id, // 🔥 FIX
+      role: decoded.role,
+      name: decoded.name,
+      email: decoded.email,
+    };
 
-    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({
