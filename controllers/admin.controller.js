@@ -33,6 +33,7 @@ export const getAllTasks = async (req, res) => {
     const tasks = await Task.find()
       .populate("assignedTo", "name email")
       .populate("createdBy", "name role")
+      .populate("updatedBy", "name email")
       .sort({ createdAt: -1 });
 
     res.json(tasks);
@@ -40,6 +41,36 @@ export const getAllTasks = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+
+export const adminUpdateTaskById = async (req, res) => {
+  try {
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Admin access only" });
+    }
+
+    const task = await Task.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...req.body,
+        updatedBy: req.user.id,
+      },
+      { new: true }
+    )
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email")
+      .populate("assignedTo", "name email");
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json(task);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 
 /* ================= UPDATE STATUS ================= */
 const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];

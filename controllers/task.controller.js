@@ -27,16 +27,16 @@ export const createTask = async (req, res) => {
 
 /* ================= GET MY TASKS (USER) ================= */
 
-
 export const getMyTasks = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    console.log("User ID:", userId);
-
     const tasks = await Task.find({
       assignedTo: userId,
-    });
+    })
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email") // ✅ REQUIRED
+      .populate("assignedTo", "name email");
 
     res.status(200).json(tasks);
   } catch (err) {
@@ -44,30 +44,26 @@ export const getMyTasks = async (req, res) => {
   }
 };
 
-
-
-
 export const getTasks = async (req, res) => {
-  try {
-    let tasks;
+  let tasks;
 
-    if (req.user.role === "ADMIN") {
-      tasks = await Task.find()
-        .populate("assignedTo", "name email")
-        .populate("createdBy", "name email role");
-    } else {
-      tasks = await Task.find({
-        assignedTo: req.user.id,
-      });
-    }
-
-    res.json(tasks);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  if (req.user.role === "ADMIN") {
+    tasks = await Task.find()
+      .populate("assignedTo", "name email")
+      .populate("updatedBy", "name email")
+      .populate("createdBy", "name email role");
+  } else {
+    tasks = await Task.find({
+      assignedTo: req.user.id,
+    })
+      .populate("assignedTo", "name email")
+      .populate("updatedBy", "name email")
+      .populate("createdBy", "name email");
+      
   }
+
+  res.json(tasks);
 };
-
-
 
 /* ================= GET SINGLE TASK (USER) ================= */
 export const getTaskById = async (req, res) => {
@@ -100,7 +96,9 @@ export const updateTaskById = async (req, res) => {
     );
 
     if (!task) {
-      return res.status(404).json({ message: "Task not found or unauthorized" });
+      return res
+        .status(404)
+        .json({ message: "Task not found or unauthorized" });
     }
 
     res.json(task);
@@ -139,7 +137,9 @@ export const deleteTaskById = async (req, res) => {
     });
 
     if (!task) {
-      return res.status(404).json({ message: "Task not found or unauthorized" });
+      return res
+        .status(404)
+        .json({ message: "Task not found or unauthorized" });
     }
 
     res.json({ message: "Task deleted successfully" });

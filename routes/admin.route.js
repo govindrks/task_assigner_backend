@@ -8,7 +8,7 @@ import {
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { adminOnly } from "../middleware/adminOnly.middleware.js";
 import { User } from "../models/user.model.js";
-
+import { adminUpdateTaskById } from "../controllers/admin.controller.js";
 const router = Router();
 
 /* ================= TASK MANAGEMENT ================= */
@@ -21,14 +21,15 @@ router.patch("/admin/tasks/:id/status", requireAuth, adminOnly, updateStatus);
 
 router.delete("/admin/tasks/:id", requireAuth, adminOnly, deleteTask);
 
+router.put("/admin/tasks/:id", requireAuth, adminOnly, adminUpdateTaskById);
+
 /* ================= USER LIST (FOR ASSIGNMENT) ================= */
 
 // 🔥 REQUIRED FOR assignedTo DROPDOWN
 // GET all users (admin only)
 router.get("/admin/users", requireAuth, adminOnly, async (req, res) => {
   try {
-    const users = await User.find()
-      .select("_id name email"); // 🔐 no password
+    const users = await User.find().select("_id name email"); // 🔐 no password
 
     res.status(200).json(users);
   } catch (err) {

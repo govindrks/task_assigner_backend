@@ -25,6 +25,19 @@ const taskSchema = new mongoose.Schema(
       index: true,
     },
 
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    priority: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH"],
+      default: "MEDIUM",
+    },
+
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
