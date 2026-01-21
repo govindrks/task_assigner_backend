@@ -5,7 +5,7 @@ import { logActivity } from "../utils/logActivity.js";
 /* ================= CREATE TASK (USER) ================= */
 export const createTask = async (req, res) => {
   try {
-    const { title, description, dueDate } = req.body;
+    const { title, description, dueDate, priority } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -16,8 +16,10 @@ export const createTask = async (req, res) => {
       description,
       dueDate,
       createdBy: req.user.id,
+      updatedBy: req.user.id,
       assignedTo: req.user.id, // assign to self
       status: "TODO",
+      priority: priority || "MEDIUM",
     });
 
     await logActivity({
@@ -98,7 +100,7 @@ export const updateTaskById = async (req, res) => {
         _id: req.params.id,
         assignedTo: req.user.id,
       },
-      req.body,
+      { ...req.body, updatedBy: req.user.id },
       { new: true }
     );
 
@@ -127,6 +129,7 @@ export const markDone = async (req, res) => {
     }
 
     task.status = "DONE";
+    task.updatedBy = req.user.id;
     await task.save();
 
     res.json(task);

@@ -2,10 +2,10 @@ import { Task } from "../models/task.model.js";
 import mongoose from "mongoose";
 import { logActivity } from "../utils/logActivity.js";
 
-/* ================= CREATE TASK ================= */
+/* ================= CREATE TASK (ADMIN) ================= */
 export const adminCreateTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, dueDate, status } = req.body;
+    const { title, description, assignedTo, dueDate, status, priority } = req.body;
 
     if (!title || !assignedTo) {
       return res.status(400).json({
@@ -18,8 +18,10 @@ export const adminCreateTask = async (req, res) => {
       description,
       dueDate,
       status: status || "TODO",
-      assignedTo: new mongoose.Types.ObjectId(assignedTo), // 🔥 FIX
+      priority: priority || "MEDIUM", // ✅ FIXED
+      assignedTo: new mongoose.Types.ObjectId(assignedTo),
       createdBy: req.user.id,
+      updatedBy: null,
     });
 
     await logActivity({
@@ -31,6 +33,7 @@ export const adminCreateTask = async (req, res) => {
 
     res.status(201).json(task);
   } catch (err) {
+    console.error("Admin create error:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -50,49 +53,61 @@ export const getAllTasks = async (req, res) => {
   }
 };
 
+/* ================= UPDATE TASK (ADMIN FULL UPDATE) ================= */
 export const adminUpdateTaskById = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Admin access only" });
+    const allowedFields = [
+      "title",
+      "description",
+      "status",
+      "priority",
+      "assignedTo",
+      "dueDate",
+    ];
+
+    const updates = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        message: "No valid fields provided for update",
+      });
     }
 
-    const oldStatus = task.status;
+    updates.updatedBy = req.user.id;
 
-task.status = status;
-task.updatedBy = req.user.id;
-await task.save();
-
-await logActivity({
-  taskId: task._id,
-  action: "STATUS_CHANGED",
-  message: `Status changed from ${oldStatus} to ${status}`,
-  userId: req.user.id,
-});
-
-
-    const task = await Task.findByIdAndUpdate(
+    const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
-      {
-        ...req.body,
-        updatedBy: req.user.id,
-      },
-      { new: true }
+      updates,
+      { new: true, runValidators: true }
     )
       .populate("createdBy", "name email")
       .populate("updatedBy", "name email")
       .populate("assignedTo", "name email");
 
-    if (!task) {
+    if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    res.json(task);
+    await logActivity({
+      taskId: updatedTask._id,
+      action: "UPDATED",
+      message: "Task updated by admin",
+      userId: req.user.id,
+    });
+
+    res.json(updatedTask);
   } catch (err) {
+    console.error("Admin update error:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-/* ================= UPDATE STATUS ================= */
+/* ================= UPDATE STATUS (ADMIN QUICK STATUS UPDATE) ================= */
 const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
 
 export const updateStatus = async (req, res) => {
@@ -105,13 +120,20 @@ export const updateStatus = async (req, res) => {
 
     const task = await Task.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status, updatedBy: req.user.id },
       { new: true }
     );
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    await logActivity({
+      taskId: task._id,
+      action: "STATUS_CHANGED",
+      message: `Status changed to ${status}`,
+      userId: req.user.id,
+    });
 
     res.json(task);
   } catch (err) {
@@ -127,6 +149,13 @@ export const deleteTask = async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    await logActivity({
+      taskId: task._id,
+      action: "DELETED",
+      message: "Task deleted by admin",
+      userId: req.user.id,
+    });
 
     res.json({ message: "Task deleted successfully" });
   } catch (err) {
