@@ -26,14 +26,14 @@ const taskSchema = new mongoose.Schema(
     },
 
     updatedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "User",
-  default: null
-},
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
 
     priority: {
       type: String,
-      enum: ["LOW", "MEDIUM", "HIGH"],
+      enum: ["LOW", "MEDIUM", "HIGH", "URGENT"],
       default: "MEDIUM",
     },
 
@@ -47,7 +47,7 @@ const taskSchema = new mongoose.Schema(
       type: Date,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const Task = mongoose.model("Task", taskSchema);

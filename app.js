@@ -6,6 +6,7 @@ import userRoutes from "./routes/user.route.js";
 import taskRoutes from "./routes/task.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import activityRoutes from "./routes/activity.route.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api", taskRoutes);
 app.use("/api", adminRoutes);
+app.use("/api", notificationRoutes);
 app.use("/api", activityRoutes);
 
 app.get("/", (req, res) => {

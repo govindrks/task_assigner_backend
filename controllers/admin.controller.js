@@ -1,11 +1,13 @@
 import { Task } from "../models/task.model.js";
 import mongoose from "mongoose";
 import { logActivity } from "../utils/logActivity.js";
+import { notifyUser } from "../utils/notifyUser.js";
 
 /* ================= CREATE TASK (ADMIN) ================= */
 export const adminCreateTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, dueDate, status, priority } = req.body;
+    const { title, description, assignedTo, dueDate, status, priority } =
+      req.body;
 
     if (!title || !assignedTo) {
       return res.status(400).json({
@@ -18,11 +20,23 @@ export const adminCreateTask = async (req, res) => {
       description,
       dueDate,
       status: status || "TODO",
-      priority: priority || "MEDIUM", // ✅ FIXED
+      priority: priority || "MEDIUM",
       assignedTo: new mongoose.Types.ObjectId(assignedTo),
       createdBy: req.user.id,
       updatedBy: null,
     });
+
+    await notifyUser({
+  userId: assignedTo,
+  taskId: task._id,
+  type: "TASK_ASSIGNED",
+  message: `You have been assigned a new task: ${task.title}`,
+  changes: [
+    { field: "status", oldValue: null, newValue: task.status },
+    { field: "priority", oldValue: null, newValue: task.priority },
+    { field: "dueDate", oldValue: null, newValue: task.dueDate || "N/A" },
+  ],
+});
 
     await logActivity({
       taskId: task._id,
@@ -45,8 +59,11 @@ export const getAllTasks = async (req, res) => {
       .populate("assignedTo", "name email")
       .populate("createdBy", "name role")
       .populate("updatedBy", "name email")
+      //This sorts tasks by creation time in descending order
+      //The most recently created tasks appear first.
       .sort({ createdAt: -1 });
 
+    // Returns the fully enriched and sorted list of tasks to the frontend.
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -56,56 +73,48 @@ export const getAllTasks = async (req, res) => {
 /* ================= UPDATE TASK (ADMIN FULL UPDATE) ================= */
 export const adminUpdateTaskById = async (req, res) => {
   try {
-    const allowedFields = [
-      "title",
-      "description",
-      "status",
-      "priority",
-      "assignedTo",
-      "dueDate",
-    ];
+    const updates = req.body;
 
-    const updates = {};
-    allowedFields.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
-      }
-    });
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        message: "No valid fields provided for update",
-      });
-    }
-
-    updates.updatedBy = req.user.id;
-
-    const updatedTask = await Task.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      { new: true, runValidators: true }
-    )
-      .populate("createdBy", "name email")
-      .populate("updatedBy", "name email")
-      .populate("assignedTo", "name email");
-
-    if (!updatedTask) {
+    const existingTask = await Task.findById(req.params.id);
+    if (!existingTask) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    await logActivity({
+    const changes = [];
+
+    Object.keys(updates).forEach((field) => {
+      if (
+        existingTask[field] !== undefined &&
+        existingTask[field]?.toString() !== updates[field]?.toString()
+      ) {
+        changes.push({
+          field,
+          oldValue: existingTask[field],
+          newValue: updates[field],
+        });
+      }
+    });
+
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { ...updates, updatedBy: req.user.id },
+      { new: true }
+    );
+
+    await notifyUser({
+      userId: updatedTask.assignedTo,
       taskId: updatedTask._id,
-      action: "UPDATED",
-      message: "Task updated by admin",
-      userId: req.user.id,
+      type: "TASK_UPDATED",
+      message: `Task "${updatedTask.title}" was updated`,
+      changes,
     });
 
     res.json(updatedTask);
   } catch (err) {
-    console.error("Admin update error:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 /* ================= UPDATE STATUS (ADMIN QUICK STATUS UPDATE) ================= */
 const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"];
@@ -121,7 +130,7 @@ export const updateStatus = async (req, res) => {
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       { status, updatedBy: req.user.id },
-      { new: true }
+      { new: true },
     );
 
     if (!task) {

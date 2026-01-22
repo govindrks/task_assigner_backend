@@ -45,7 +45,7 @@ export const getMyTasks = async (req, res) => {
       assignedTo: userId,
     })
       .populate("createdBy", "name email")
-      .populate("updatedBy", "name email") // ✅ REQUIRED
+      .populate("updatedBy", "name email")
       .populate("assignedTo", "name email");
 
     res.status(200).json(tasks);
@@ -95,19 +95,32 @@ export const getTaskById = async (req, res) => {
 /* ================= UPDATE TASK (USER) ================= */
 export const updateTaskById = async (req, res) => {
   try {
-    const task = await Task.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        assignedTo: req.user.id,
-      },
-      { ...req.body, updatedBy: req.user.id },
-      { new: true }
-    );
+    const task = await Task.findOne({
+      _id: req.params.id,
+      assignedTo: req.user.id,
+    });
 
-    if (!task) {
-      return res
-        .status(404)
-        .json({ message: "Task not found or unauthorized" });
+    const oldPriority = task.priority;
+    const newPriority = req.body.priority;
+
+    if (oldPriority !== newPriority) {
+      task.priority = newPriority;
+      task.updatedBy = req.user.id;
+      await task.save();
+
+      await notifyUser({
+        userId: task.assignedTo,
+        taskId: task._id,
+        type: "TASK_UPDATED",
+        message: `Priority updated for task "${task.title}"`,
+        changes: [
+          {
+            field: "priority",
+            oldValue: oldPriority,
+            newValue: newPriority,
+          },
+        ],
+      });
     }
 
     res.json(task);
@@ -115,6 +128,7 @@ export const updateTaskById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 /* ================= MARK DONE (USER) ================= */
 export const markDone = async (req, res) => {
