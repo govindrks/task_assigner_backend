@@ -1,6 +1,7 @@
 import { Task } from "../models/task.model.js";
 import mongoose from "mongoose";
 import { logActivity } from "../utils/logActivity.js";
+import { notifyUser } from "../utils/notifyUser.js";
 
 /* ================= CREATE TASK (USER) ================= */
 export const createTask = async (req, res) => {
