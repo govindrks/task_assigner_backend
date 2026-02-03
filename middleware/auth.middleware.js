@@ -1,31 +1,26 @@
 import { verifyToken } from "../utils/jwt.util.js";
 
+/* =====================================================
+   AUTH → attaches tenant scoped user (SAFE)
+===================================================== */
 export const requireAuth = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const header = req.headers.authorization;
 
-    if (!authHeader) {
+    if (!header || !header.startsWith("Bearer ")) {
       return res.status(401).json({
-        message: "Authorization header missing",
+        message: "Authorization token required",
       });
     }
 
-    const [type, token] = authHeader.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      return res.status(401).json({
-        message: "Invalid authorization format",
-      });
-    }
+    const token = header.split(" ")[1];
 
     const decoded = verifyToken(token);
 
-    // ✅ NORMALIZE USER OBJECT
+    /* ONLY TRUST JWT */
     req.user = {
-      id: decoded.id || decoded._id, // 🔥 FIX
-      role: decoded.role,
-      name: decoded.name,
-      email: decoded.email,
+      id: decoded.sub,                // standard JWT subject
+      organizationId: decoded.organizationId, // tenant
     };
 
     next();

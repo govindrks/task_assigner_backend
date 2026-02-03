@@ -1,21 +1,26 @@
-import Notification from "../models/Notification.js";
+import { Notification } from "../models/notification.model.js";
 
-
-export const notifyUser = async ({ userId, title, message }) => {
+/* =====================================================
+   Tenant safe notification service
+===================================================== */
+export const sendNotification = async ({
+  organization,
+  userId,
+  taskId,
+  type,
+  message,
+  changes = [],
+}) => {
   try {
-    // Save notification in DB
     await Notification.create({
+      organization,
       user: userId,
-      title,
+      task: taskId,
+      type,
       message,
-      isRead: false,
+      changes,
     });
-
-    // Optional: also send email or push
-    // const user = await User.findById(userId);
-    // await sendEmail({ to: user.email, subject: title, text: message });
-
   } catch (err) {
-    console.error("Notification failed:", err.message);
+    console.error("Notification error:", err.message);
   }
 };

@@ -7,20 +7,43 @@ const notificationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
+    /* OPTIONAL now (task OR invite) */
     task: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
-      required: true,
+      required: false,
     },
+
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
+
     type: {
       type: String,
-      enum: ["TASK_ASSIGNED", "TASK_UPDATED"],
+      enum: [
+        "TASK_ASSIGNED",
+        "TASK_UPDATED",
+        "ORG_INVITE",
+        "ORG_INVITE_ACCEPTED",
+      ],
       required: true,
     },
+
     message: {
       type: String,
       required: true,
     },
+
+    // Optional metadata for additional context
+    metadata: {
+      inviteId: mongoose.Schema.Types.ObjectId,
+      token: String,
+    },
+
     changes: [
       {
         field: String,
@@ -28,12 +51,15 @@ const notificationSchema = new mongoose.Schema(
         newValue: mongoose.Schema.Types.Mixed,
       },
     ],
+
     isRead: {
       type: Boolean,
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
+
+notificationSchema.index({ organization: 1, user: 1, isRead: 1 });
 
 export const Notification = mongoose.model("Notification", notificationSchema);

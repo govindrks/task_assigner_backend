@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
   {
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: false,
+      default: null,
+    },
     title: {
       type: String,
       required: true,
@@ -49,5 +55,8 @@ const taskSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+taskSchema.index({ organization: 1, status: 1 });
+taskSchema.index({ organization: 1, assignedTo: 1 });
 
 export const Task = mongoose.model("Task", taskSchema);

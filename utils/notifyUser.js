@@ -1,7 +1,18 @@
 import { Notification } from "../models/notification.model.js";
 
-export const notifyUser = async ({ userId, taskId, type, message, changes = [] }) => {
+/* =====================================================
+   Tenant aware notifications
+===================================================== */
+export const notifyUser = async ({
+  organization,
+  userId,
+  taskId,
+  type,
+  message,
+  changes = [],
+}) => {
   await Notification.create({
+    organization,
     user: userId,
     task: taskId,
     type,

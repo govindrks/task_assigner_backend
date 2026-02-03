@@ -46,10 +46,16 @@ const projectSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-projectSchema.index({ key: 1 });
+projectSchema.index({ organization: 1, key: 1 }, { unique: true });
 
 export const Project = mongoose.model("Project", projectSchema);

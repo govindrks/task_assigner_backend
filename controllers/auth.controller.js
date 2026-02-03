@@ -1,28 +1,37 @@
-import { sendEmail } from "../email/sendEmail.js";
-import { loginUser, registerUser } from "../services/auth.service.js";
+import {
+  loginUser,
+  registerUser,
+  selectTenant
+} from "../services/auth.service.js";
 
+import { sendWelcomeEmail } from "../services/welcomeEmail.service.js";
 
+/// REGISTER
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role, adminSecret } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const { user, token } = await registerUser({ name, email, password, role, adminSecret });
+    const { user, token } = await registerUser({ name, email, password });
 
     const safeUser = {
       id: user._id,
-      role: user.role,
       name: user.name,
       email: user.email,
     };
 
+    /*  Send Welcome Email (correct way) */
     try {
-      await sendEmail({ to: email, name });
+      await sendWelcomeEmail({
+        email,
+        name,
+        loginLink: `${process.env.FRONTEND_URL}/login`,
+      });
     } catch (err) {
-      console.error("Email failed:", err.message);
+      console.error("Welcome email failed:", err.message);
     }
 
     res.status(201).json({
@@ -30,9 +39,19 @@ export const register = async (req, res) => {
       data: { user: safeUser, token },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
+
+
+/* LOGIN */
+// export const login = async (req, res) => {
+//   const result = await loginUser(req.body);
+//   res.json(result); // { user, organizations }
+// };
 
 export const login = async (req, res) => {
   try {
@@ -50,4 +69,14 @@ export const login = async (req, res) => {
   } catch (err) {
     return res.status(401).json({ success: false, message: err.message });
   }
+};
+
+/* SELECT TENANT → issue JWT */
+export const chooseTenant = async (req, res) => {
+  const { token } = await selectTenant({
+    userId: req.user.id,
+    organizationId: req.body.organizationId,
+  });
+
+  res.json({ token });
 };

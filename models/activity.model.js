@@ -2,6 +2,13 @@ import mongoose from "mongoose";
 
 const activitySchema = new mongoose.Schema(
   {
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true,
+    },
+
     taskId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Task",
@@ -11,12 +18,7 @@ const activitySchema = new mongoose.Schema(
 
     action: {
       type: String,
-      enum: [
-        "CREATED",
-        "UPDATED",
-        "STATUS_CHANGED",
-        "ASSIGNED",
-      ],
+      enum: ["CREATED", "UPDATED", "STATUS_CHANGED", "ASSIGNED", "COMMENT"],
       required: true,
     },
 
@@ -33,5 +35,7 @@ const activitySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+activitySchema.index({ organization: 1, taskId: 1 });
 
 export const Activity = mongoose.model("Activity", activitySchema);

@@ -1,28 +1,28 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.middleware.js";
-import { createTask, deleteTaskById, getMyTasks, getTaskById, getTasks, markDone, updateTaskById } from "../controllers/task.controller.js";
-
-
+import { requireMember, requireAdmin } from "../middleware/org.middleware.js";
+import {
+  createTask,
+  deleteTaskById,
+  getTasks,
+  updateTaskById,
+} from "../controllers/task.controller.js";
 
 const router = Router();
 
-router.get("/tasks/my", requireAuth, getTasks );
+/* list */
+router.get("/tasks", requireAuth, requireMember, getTasks);
 
+/* create (admin) */
+router.post("/tasks", requireAuth, requireAdmin, createTask);
 
-router.post("/tasks", requireAuth, createTask);
+/* single */
+//router.get("/tasks/:id", requireAuth, requireMember, getMyTasks);
 
-// get tasks (own for USER, all for ADMIN)
-router.get("/tasks", requireAuth, getMyTasks);
+/* update */
+router.patch("/tasks/:id", requireAuth, requireMember, updateTaskById);
 
-// get single task (ownership enforced in controller)
-router.get("/tasks/:id", requireAuth, getTaskById);
+/* delete */
+router.delete("/tasks/:id", requireAuth, requireAdmin, deleteTaskById);
 
-// update task (owner or admin)
-router.put("/tasks/:id", requireAuth, updateTaskById);
-
-// delete task (owner or admin)
-router.delete("/tasks/:id", requireAuth, deleteTaskById);
-
-// mark task as done (owner only)
-router.patch("/tasks/:id/mark-done", requireAuth, markDone);
 export default router;
