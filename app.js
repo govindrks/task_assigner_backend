@@ -76,6 +76,71 @@ const app = express();
 
 app.set("trust proxy", 1);
 
+/* =====================================================
+   CORS
+===================================================== */
+
+const normalizeOrigin = (value) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // If an env var contains a full URL (e.g. https://site.com/login) normalize to origin
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/$/, "");
+  }
+};
+
+const allowedOrigins = new Set(
+  [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_ORIGIN,
+    process.env.CORS_ORIGINS, // optional comma-separated list
+  ]
+    .flatMap((v) => (typeof v === "string" ? v.split(",") : []))
+    .map(normalizeOrigin)
+    .filter(Boolean),
+);
+
+const allowAll = process.env.CORS_ALLOW_ALL === "true";
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // non-browser clients
+
+    const normalized = normalizeOrigin(origin);
+
+    if (allowAll) return cb(null, true);
+
+    // Netlify previews: https://deploy-preview-123--taskassignergrks.netlify.app
+    const isNetlifyPreview = /^https?:\/\/([a-z0-9-]+--)?taskassignergrks\.netlify\.app$/.test(
+      normalized,
+    );
+
+    // Allow any localhost port during development (http://localhost:5174 etc)
+    const isLocalhost = /^http:\/\/localhost:\d+$/.test(normalized);
+
+    if (allowedOrigins.has(normalized) || isNetlifyPreview || isLocalhost) {
+      return cb(null, true);
+    }
+
+    // Helpful for deployment debugging
+    console.warn("CORS blocked origin:", normalized);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  maxAge: 86400, // cache preflight 24h
+};
+
+// Handle preflight across the board BEFORE rate limiting/auth
+app.options(/.*/, cors(corsOptions));
+app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -84,27 +149,6 @@ app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 1000,
-  })
-);
-
-/* =====================================================
-   CORS
-===================================================== */
-
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://taskassignergrks.netlify.app",
-];
-
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return cb(null, true);
-      }
-      cb(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
   })
 );
 
@@ -147,10 +191,6 @@ app.use((req, res) => {
     method: req.method,
     path: req.originalUrl,
   });
-});
-
-app.get("/", (req, res) => {
-  res.send("API is running");
 });
 
 /* =====================================================
