@@ -125,6 +125,14 @@ app.use("/api/v1/org", organizationRoutes);
    Health check
 ===================================================== */
 
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Task Assigner API",
+    health: "/health",
+  });
+});
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
@@ -134,7 +142,11 @@ app.get("/health", (req, res) => {
 ===================================================== */
 
 app.use((req, res) => {
-  res.status(404).json({ message: "Route not found" });
+  res.status(404).json({
+    message: "Route not found",
+    method: req.method,
+    path: req.originalUrl,
+  });
 });
 
 app.get("/", (req, res) => {

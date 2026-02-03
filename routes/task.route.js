@@ -11,18 +11,22 @@ import {
 const router = Router();
 
 /* list */
+router.get("/", requireAuth, requireMember, getTasks);
 router.get("/tasks", requireAuth, requireMember, getTasks);
 
 /* create (admin) */
+router.post("/", requireAuth, requireAdmin, createTask);
 router.post("/tasks", requireAuth, requireAdmin, createTask);
 
 /* single */
 //router.get("/tasks/:id", requireAuth, requireMember, getMyTasks);
 
 /* update */
+router.patch("/:id", requireAuth, requireMember, updateTaskById);
 router.patch("/tasks/:id", requireAuth, requireMember, updateTaskById);
 
 /* delete */
+router.delete("/:id", requireAuth, requireAdmin, deleteTaskById);
 router.delete("/tasks/:id", requireAuth, requireAdmin, deleteTaskById);
 
 export default router;
